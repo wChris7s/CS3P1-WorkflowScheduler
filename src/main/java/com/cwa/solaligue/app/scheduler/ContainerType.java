@@ -1,38 +1,35 @@
 package com.cwa.solaligue.app.scheduler;
 
+import lombok.Getter;
+
+@Getter
 public enum ContainerType {
 
-  A(0.92 / 0.92, (0.085), "A"),//m1.small     //2.8
-  C(4.08 / 0.92, (0.34), "C"),//m1.large     //1.8
-  E(7.05 / 0.92, (0.57), "E"),//m2.xlarge    //2.6
-  G(15.9 / 0.92, (1.34), "G"),//m2.2xlarge   //2.6
-  H(27.25 / 0.92, (2.68), "H");//m2.4xlarge    //2.6
+  A(1.0, (0.085), "A"),
+  C(4.08 / 0.92, (0.34), "C"),
+  E(7.05 / 0.92, (0.57), "E"),
+  G(15.9 / 0.92, (1.34), "G"),
+  H(27.25 / 0.92, (2.68), "H");
 
-  public static ContainerType getSmallest() {
-    return ContainerType.values()[0];
-  }
+  private final double containerMemory;
 
-  public static ContainerType getLargest() {
-    return ContainerType.values()[ContainerType.values().length - 1];
-  }
+  private final double containerCPU;
 
-  public double container_memory_B = 1.0;
-  public double container_CPU = 1.0;
-  public double containerDisk_B = 1.0;
-  public double container_price = 1.0;
-  public String name;
+  private final double containerDisk;
 
+  private final double containerPrice;
 
-  ContainerType(double container_CPU, double container_price, String name) {
-    this.container_CPU = container_CPU;
-    this.container_memory_B = 1.0;
-    this.containerDisk_B = 1.0;
-    this.container_price = container_price;
+  private final String name;
+
+  ContainerType(double containerCPU, double containerPrice, String name) {
+    this.containerCPU = containerCPU;
+    this.containerMemory = 1.0;
+    this.containerDisk = 1.0;
+    this.containerPrice = containerPrice;
     this.name = name;
   }
 
   public static ContainerType getNextSmaller(ContainerType cType) {
-
     ContainerType prevCType = ContainerType.getSmallest();
     for (ContainerType nextCT : ContainerType.values()) {
       if (nextCT.equals(cType))
@@ -59,25 +56,11 @@ public enum ContainerType {
     return nextCType;
   }
 
-  public static boolean isSmaller(ContainerType ct1, ContainerType ct2) {
-    for (ContainerType nextCT : ContainerType.values()) {
-      if (nextCT == ct2) {
-        return false;
-      }
-      if (nextCT == ct1)
-        return true;
-    }
-    return false;
+  public static ContainerType getSmallest() {
+    return ContainerType.values()[0];
   }
 
-  public static boolean isLarger(ContainerType ct1, ContainerType ct2) {
-    for (ContainerType nextCT : ContainerType.values()) {
-      if (nextCT == ct1) {
-        return false;
-      }
-      if (nextCT == ct2)
-        return true;
-    }
-    return false;
+  public static ContainerType getLargest() {
+    return ContainerType.values()[ContainerType.values().length - 1];
   }
 }

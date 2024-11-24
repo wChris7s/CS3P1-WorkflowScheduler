@@ -69,7 +69,7 @@ public class SimEnginge {
       Pair<Long, Long> se = state.workerStartEndTime_MS.get(cid);
       int localQuanta = (int) Math.ceil((double) (se.b - se.a) / RuntimeConstants.quantum_MS);
       // quanta+=localQuanta;
-      money += localQuanta * state.plan.cluster.getContainer(cid).contType.container_price;
+      money += localQuanta * state.plan.cluster.getContainer(cid).contType.getContainerPrice();
     }
     return money;
   }

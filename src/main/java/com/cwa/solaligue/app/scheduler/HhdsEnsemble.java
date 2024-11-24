@@ -4,35 +4,30 @@ import com.cwa.solaligue.app.graph.DAG;
 import com.cwa.solaligue.app.graph.Edge;
 import com.cwa.solaligue.app.graph.Operator;
 import com.cwa.solaligue.app.utilities.MultiplePlotInfo;
+import lombok.Getter;
 
 import java.util.*;
 
+@Getter
 public class HhdsEnsemble implements Scheduler {
 
-  public SolutionSpace space;
-  public Cluster cluster;
-  public DAG graph;
-
-  public String rankingMethod = ""; //commonEntry, perDag, dagMerge: default
-
-  public LinkedList<Long> opsSorted;
-
-  public int pruneSkylineSize;
-  public int homoPlanstoKeep = 10;
-
-  public int maxContainers = 100000000;
-
-  public boolean backfilling = false;
-  public boolean backfillingUpgrade = false;
-
-  public boolean heteroEnabled = true;
-  public boolean pruneEnabled;
-  public String PruneMethod;
-  public boolean multi;
-  public int constraint_mode;
-  public double money_constraint;
-  public long time_constraint;
-
+  private SolutionSpace space;
+  private Cluster cluster;
+  private DAG graph;
+  private String rankingMethod = ""; //commonEntry, perDag, dagMerge: default
+  private LinkedList<Long> opsSorted;
+  private int pruneSkylineSize;
+  private int homoPlanstoKeep = 10;
+  private int maxContainers = 100000000;
+  private boolean backfilling = false;
+  private boolean backfillingUpgrade = false;
+  private boolean heteroEnabled = true;
+  private boolean pruneEnabled;
+  private String PruneMethod;
+  private boolean multi;
+  private int constraint_mode;
+  private double money_constraint;
+  private long time_constraint;
   private HashMap<Long, Integer> opLevel;
 
 
@@ -611,7 +606,7 @@ public class HhdsEnsemble implements Scheduler {
 
       double wcur = 0.0;
       for (ContainerType contType : ContainerType.values())
-        wcur += graph.getOperator(opId).getRunTime_MS() / contType.container_CPU; //TODO ji check if S or MS
+        wcur += graph.getOperator(opId).getRunTime_MS() / contType.getContainerCPU(); //TODO ji check if S or MS
       int types = ContainerType.values().length;
       double w = wcur / (double) types;//average execution cost for operator op
       b_rank.put(opId, (w + maxRankChild));//b_rank.put(opId, (w+maxRankChild));
@@ -629,7 +624,7 @@ public class HhdsEnsemble implements Scheduler {
 
       double wcur = 0.0;
       for (ContainerType contType : ContainerType.values())
-        wcur += graph.getOperator(opId).getRunTime_MS() / contType.container_CPU;
+        wcur += graph.getOperator(opId).getRunTime_MS() / contType.getContainerCPU();
       int types = ContainerType.values().length;
       double w = wcur / (double) types;//average execution cost for operator op
       t_rank.put(opId, (maxRankParent));
@@ -660,8 +655,8 @@ public class HhdsEnsemble implements Scheduler {
       double wcur = 0.0;
       for (ContainerType contType : ContainerType.values()) {
         long mst = graph.getOperator(opId).getRunTime_MS();
-        double cput = contType.container_CPU;
-        wcur += graph.getOperator(opId).getRunTime_MS() / contType.container_CPU;
+        double cput = contType.getContainerCPU();
+        wcur += graph.getOperator(opId).getRunTime_MS() / contType.getContainerCPU();
       }
       int types = ContainerType.values().length;
       double w = wcur / (double) types;//average execution cost for operator op

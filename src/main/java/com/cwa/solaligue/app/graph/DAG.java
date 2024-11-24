@@ -165,7 +165,7 @@ public class DAG {
 
       double w = 0.0;
       for (ContainerType contType : contTypes)
-        w += this.getOperator(opId).getRunTime_MS() / contType.container_CPU;
+        w += this.getOperator(opId).getRunTime_MS() / contType.getContainerCPU();
 
       w = w / (double) types;
       Double opRank = w + maxRankParent;
@@ -197,7 +197,7 @@ public class DAG {
 
       double wcur = 0.0;
       for (ContainerType contType : ContainerType.values())
-        wcur += this.getOperator(opId).getRunTime_MS() / contType.container_CPU;
+        wcur += this.getOperator(opId).getRunTime_MS() / contType.getContainerCPU();
 
       int types = ContainerType.values().length;
       double w = wcur / (double) types;
@@ -225,7 +225,7 @@ public class DAG {
 
       double wcur = 0.0;
       for (ContainerType contType : ContainerType.values())
-        wcur += this.getOperator(opId).getRunTime_MS() / contType.container_CPU;
+        wcur += this.getOperator(opId).getRunTime_MS() / contType.getContainerCPU();
       int types = ContainerType.values().length;
       double w = wcur / (double) types;
       w_mean.put(opId, w);

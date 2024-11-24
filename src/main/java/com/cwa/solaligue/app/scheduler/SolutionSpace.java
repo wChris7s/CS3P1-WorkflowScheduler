@@ -875,6 +875,62 @@ public class SolutionSpace implements Iterable<Plan> {
     this.results.addAll(retset);
   }
 
+  public List<List<Plan>> getSortedFronts() {
+    List<List<Plan>> fronts = new ArrayList<>();
+    List<Plan> currentFront = new ArrayList<>();
+    Set<Plan> remainingPlans = new HashSet<>(results);
+
+    while (!remainingPlans.isEmpty()) {
+        currentFront.clear();
+        Iterator<Plan> iterator = remainingPlans.iterator();
+
+        while (iterator.hasNext()) {
+            Plan plan = iterator.next();
+            boolean dominated = false;
+
+            for (Plan otherPlan : remainingPlans) {
+                if (dominates(otherPlan, plan)) {
+                    dominated = true;
+                    break;
+                }
+            }
+
+            if (!dominated) {
+                currentFront.add(plan);
+                iterator.remove();
+            }
+        }
+
+        fronts.add(new ArrayList<>(currentFront));
+    }
+
+    return fronts;
+}
+
+private boolean dominates(Plan p1, Plan p2) {
+    boolean betterInAnyObjective = false;
+
+    if (p1.stats.runtime_MS < p2.stats.runtime_MS) {
+        betterInAnyObjective = true;
+    } else if (p1.stats.runtime_MS > p2.stats.runtime_MS) {
+        return false;
+    }
+
+    if (p1.stats.money < p2.stats.money) {
+        betterInAnyObjective = true;
+    } else if (p1.stats.money > p2.stats.money) {
+        return false;
+    }
+
+    if (p1.stats.unfairness < p2.stats.unfairness) {
+        betterInAnyObjective = true;
+    } else if (p1.stats.unfairness > p2.stats.unfairness) {
+        return false;
+    }
+
+    return betterInAnyObjective;
+}
+
 
 }
 

@@ -4,12 +4,14 @@ import com.cwa.solaligue.app.graph.DAG;
 import com.cwa.solaligue.app.graph.Edge;
 import com.cwa.solaligue.app.graph.Operator;
 import com.cwa.solaligue.app.utilities.Pair;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Stack;
 
+@Slf4j
 public class Plan  {
     public DAG graph;
     public HashMap<Long, Long> assignments;//opIdToContId;
@@ -172,7 +174,7 @@ public class Plan  {
 
         ///////////////OPERATOR PROCESS TIME///////////////
         Operator op = graph.getOperator(opId);
-        opProcessingDuration_MS = (int) Math.ceil(op.getRunTime_MS() / cont.contType.container_CPU);
+        opProcessingDuration_MS = (int) Math.ceil(op.getRunTime_MS() / cont.contType.getContainerCPU());
 
         ////////////////SEND DATA TO DISTRIBUTED STORAGE ////////////////////
         for (Edge edge : graph.getChildren(opId)) {
@@ -423,10 +425,10 @@ public class Plan  {
         sb.append(String.format(" -- #Conts: %d",cluster.containersList.size()));
 
         for (ContainerType ct : cluster.countTypes.keySet()) {
-            i.append(ct.name).append("(").append(cluster.countTypes.get(ct)).append(")")
+            i.append(ct.getName()).append("(").append(cluster.countTypes.get(ct)).append(")")
                 .append(" ");
 
-            sb.append(String.format(" %s(%d) ",ct.name,cluster.countTypes.get(ct)));
+            sb.append(String.format(" %s(%d) ",ct.getName(),cluster.countTypes.get(ct)));
         }
 
         sb.append(String.format("%n"));
@@ -435,6 +437,24 @@ public class Plan  {
         return sb.toString();
     }
 
+    // En la clase Plan
+    public void setReferencePoint(double[] refPoint) {
+        this.referencePoint = refPoint;
+    }
+
+    // Asegúrate de agregar el campo referencePoint en la clase Plan
+    private double[] referencePoint;
+
+    public void setObjectives(double[] objectives) {
+        this.objectives = objectives;
+    }
+
+    public double[] getObjectives() {
+        return this.objectives;
+    }
+
+    // Campo adicional
+    private double[] objectives;
 
 
 }

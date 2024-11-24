@@ -78,7 +78,7 @@ public class Statistics {
                 System.out.println("NO QUANTA IS USED IN CONTAINER");
             }
             quanta+=localQuanta;
-            money+=localQuanta*c.contType.container_price;
+            money+=localQuanta*c.contType.getContainerPrice();
 
         }
         containersUsed = plan.cluster.contUsed.size();
@@ -259,7 +259,7 @@ public class Statistics {
                 }
 
                 int contQuanta = (int) Math.ceil((double)(c.UsedUpTo_MS-c.startofUse_MS)/RuntimeConstants.quantum_MS);
-                double contCost =contQuanta*c.contType.container_price;
+                double contCost =contQuanta*c.contType.getContainerPrice();
 
 
                 for(Long dgId: timeUsedPerDag.keySet()) {
@@ -310,7 +310,7 @@ public class Statistics {
             }
             double wcur=0.0;
             for(ContainerType contType: ContainerType.values())
-                wcur+=graph.getOperator(opId).getRunTime_MS()/contType.container_CPU;
+                wcur+=graph.getOperator(opId).getRunTime_MS()/contType.getContainerCPU();
             int types= ContainerType.values().length;
             double w=wcur/(double)types;//average execution cost for operator op
             w_mean.put(opId, w);
