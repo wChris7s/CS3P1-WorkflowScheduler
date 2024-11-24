@@ -33,8 +33,9 @@ public class Statistics {
     public double unfairnessNorm=0.0;
     public Double subdagMaxMakespan=0.0;//dagId, time
     public Double subdagMinMakespan = Double.MAX_VALUE;//dagId, time
-    public Double subdagMeanMoneyFragment;//dagId, time
-    public HashMap <Long, Double> subdagMoneyFragment = new HashMap<>();//dagId, time
+    //public Double subdagMeanMoneyFragment;//dagId, time
+    //public double subdagMeanMoneyFragment = plan.subdagMoneyFragment.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
     public HashMap  <Long, Long> subdagResponseTime = new HashMap<>();//dagId, time
     public Double subdagMeanResponseTime=0.0;//dagId, time
     public Double subdagMeanSlowdown=0.0;//dagId, time
@@ -45,6 +46,7 @@ public class Statistics {
 
 
     public Statistics(Plan plan){
+        this.plan = plan; // Guarda la referencia a plan
 
         //xio
         double totalLossRate = 0.0;
@@ -94,7 +96,7 @@ public class Statistics {
         containersUsed = plan.cluster.contUsed.size();
 
 
-       int makespanQuanta = (int)Math.ceil(runtime_MS/(double)RuntimeConstants.quantum_MS);
+        int makespanQuanta = (int)Math.ceil(runtime_MS/(double)RuntimeConstants.quantum_MS);
         meanContainersUsed = (int) Math.ceil(quanta/(double)(makespanQuanta));
 
         double minUtil = 10.0;
@@ -118,7 +120,7 @@ public class Statistics {
 
             for(Long opId: plan.assignments.keySet()){
                 if(plan.assignments.get(opId) == c.id){
-                  //  System.out.println(plan.opIdtoStartEndProcessing_MS.get(opId).a);
+                    //  System.out.println(plan.opIdtoStartEndProcessing_MS.get(opId).a);
                     dtTime += plan.opIdToBeforeDTDuration_MS.get(opId) + plan.opIdToAfterDTDuration_MS.get(opId);
                     proTime += plan.opIdToProcessingTime_MS.get(opId);
                 }
@@ -243,7 +245,7 @@ public class Statistics {
 
                 // Cálculo del overspending
                 double exclusiveCost = subdagMakespan.get(dagId) * plan.cluster.containersList.get(0).contType.container_price;
-                double sharedCost = subdagMoneyFragment.getOrDefault(dagId, 0.0);
+                double sharedCost = plan.subdagMoneyFragment.getOrDefault(dagId, 0.0);
                 double overspending = sharedCost / exclusiveCost;
                 subdagOverspending.put(dagId, overspending);
 
@@ -272,58 +274,19 @@ public class Statistics {
             }
             //calculo de inequidd
             for(Long dgId: subdagResponseTime.keySet()) {
-                    partialUnfairness += Math.abs(subdagResponseTime.get(dgId) / computePartialCP(plan.graph.superDAG.getSubDAG(dgId)) - subdagMeanResponseTime);
-                           }
+                partialUnfairness += Math.abs(subdagResponseTime.get(dgId) / computePartialCP(plan.graph.superDAG.getSubDAG(dgId)) - subdagMeanResponseTime);
+            }
             //inequidad normalizadas
             for(Long dgId: subdagResponseTime.keySet()) {
                 unfairness += Math.abs((double)subdagResponseTime.get(dgId)/plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new ContainerType[]{plan.cluster.containersList.get(0).contType}) -subdagMeanResponseTime);//+= Math.abs(subdagResponseTime.get(dgId) / plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new containerType[]{plan.cluster.containersList.get(0).contType}) - subdagMeanResponseTime);
-             }
+            }
 
-                        for(Long dgId: subdagResponseTime.keySet()) {
+            for(Long dgId: subdagResponseTime.keySet()) {
                 if(Math.abs(subdagResponseTime.get(dgId))>1e-12)
                     unfairnessNorm += Math.abs(plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new ContainerType[]{plan.cluster.containersList.get(0).contType})/(double)subdagResponseTime.get(dgId)-subdagMeanSlowdown);//+= Math.abs(subdagResponseTime.get(dgId) / plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new containerType[]{plan.cluster.containersList.get(0).contType}) - subdagMeanResponseTime);
             }
 
             Double sumCostSubdag =0.0;
-
-            //cost fragmentation per subdag
-            for(Container c:plan.cluster.containersList){
-
-                HashMap <Long, Long> timeUsedPerDag = new HashMap<>();
-
-                for(Slot s: c.opsschedule) {
-                    Long dId = plan.graph.operators.get(s.opId).dagID;
-                    Long tused= plan.opIdToBeforeDTDuration_MS.get(s.opId) + plan.opIdtoStartEndProcessing_MS.get(s.opId).b + plan.opIdToAfterDTDuration_MS.get(s.opId);
-
-                    if(timeUsedPerDag.containsValue(dId))
-                    tused += timeUsedPerDag.get(dId);
-                    timeUsedPerDag.put(dId, tused);
-                }
-
-                int contQuanta = (int) Math.ceil((double)(c.UsedUpTo_MS-c.startofUse_MS)/RuntimeConstants.quantum_MS);
-                double contCost =contQuanta*c.contType.container_price;
-
-
-                for(Long dgId: timeUsedPerDag.keySet()) {
-
-                    double moneyFrag = contCost * timeUsedPerDag.get(dgId)/(contQuanta*RuntimeConstants.quantum_MS);
-                    if(subdagMoneyFragment.containsKey(dgId)) {
-                        moneyFrag += subdagMoneyFragment.get(dgId);
-                    }
-
-                    subdagMoneyFragment.put(dgId, moneyFrag);
-
-                }
-
-
-            }
-
-            for(Long dgId: subdagMoneyFragment.keySet()) {
-                sumCostSubdag += subdagMoneyFragment.get(dgId);
-            }
-
-            subdagMeanMoneyFragment = sumCostSubdag/(double) subdagMoneyFragment.size();
-
 
 
         }
@@ -363,6 +326,7 @@ public class Statistics {
 
         return maxPath;
     }
+    private Plan plan; // Nueva variable de instancia
 
 
     public Statistics(Statistics s){
@@ -382,16 +346,12 @@ public class Statistics {
         this.subdagMeanMakespan=s.subdagMeanMakespan;
         this.subdagMaxMakespan=s.subdagMaxMakespan;
         this.subdagMinMakespan=s.subdagMinMakespan;
-        this.subdagMeanMoneyFragment=s.subdagMeanMoneyFragment;
         this.subdagMeanResponseTime=s.subdagMeanResponseTime;
         this.subdagMaxResponseTime=s.subdagMaxResponseTime;
         this.subdagMinResponseTime=s.subdagMinResponseTime;
         this.subdagMeanSlowdown=s.subdagMeanSlowdown;
 
 
-
-        subdagMoneyFragment = new HashMap<>();//dagId, time
-        this.subdagMoneyFragment.putAll(s.subdagMoneyFragment);
 
         subdagStartTime = new HashMap<>();//dagId, time
         this.subdagStartTime.putAll(s.subdagStartTime);

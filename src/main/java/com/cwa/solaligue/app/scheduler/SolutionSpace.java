@@ -85,6 +85,7 @@ public class SolutionSpace implements Iterable<Plan> {
   }
 
 
+
   public Plan getMinRuntimePlan() {
     long runtime = Long.MAX_VALUE;
     Plan pp = null;
@@ -257,8 +258,6 @@ public class SolutionSpace implements Iterable<Plan> {
 
 
     Comparator<Plan> MultiParetoPlanComparator = (Comparator<Plan>) (p1, p2) -> {//
-
-
       if (p1.stats.runtime_MS == p2.stats.runtime_MS) {
         if (Math.abs(p1.stats.money - p2.stats.money) < RuntimeConstants.precisionError) {
 
@@ -273,8 +272,6 @@ public class SolutionSpace implements Iterable<Plan> {
       } else {
         return Long.compare(p1.stats.runtime_MS, p2.stats.runtime_MS);
       }
-
-
     };
 
 
@@ -314,77 +311,66 @@ public class SolutionSpace implements Iterable<Plan> {
 
     return score;
   }
+  private boolean dominates(Plan a, Plan b) {
+    // Devuelve true si el plan `a` domina al plan `b`
+    return a.stats.runtime_MS <= b.stats.runtime_MS &&
+            a.stats.money <= b.stats.money &&
+            (a.stats.runtime_MS < b.stats.runtime_MS || a.stats.money < b.stats.money);
+  }
+
+  private boolean isParetoOptimal(Plan newPlan, List<Plan> currentPlans) {
+    for (Plan existingPlan : currentPlans) {
+      if (dominates(existingPlan, newPlan)) {
+        return false; // Si algún plan existente domina al nuevo plan, no es Pareto óptimo
+      }
+    }
+    return true; // El nuevo plan no está dominado por ningún plan existente
+  }
 
   public void computeSkyline(boolean isPareto, boolean multi) {
+    // Ordena los planes por tiempo y costo
+    this.sort(isPareto, multi);
 
-    SolutionSpace skyline = new SolutionSpace();
+    // Almacén para los planes Pareto óptimos
+    List<Plan> paretoPlans = new ArrayList<>();
 
-    this.sort(isPareto, multi); // Sort by time breaking equality by sorting by money
+    // Evaluación Pareto incremental
+    for (Plan newPlan : results) {
+      if (isParetoOptimal(newPlan, paretoPlans)) {
+        paretoPlans.add(newPlan); // Añadir sólo si no está dominado
+      }
+    }
 
     if (multi) {
-      Plan previous = null;
-
+      // Evaluación adicional para fairness
+      List<Plan> skylineFairness = new ArrayList<>();
       Plan previousFair = null;
 
-      for (Plan est : results) {
-
-        if (previous == null) {
-          skyline.add(est);
-          previous = est;
+      for (Plan est : paretoPlans) {
+        if (previousFair == null) {
+          skylineFairness.add(est);
           previousFair = est;
           continue;
         }
-        if (previous.stats.runtime_MS == est.stats.runtime_MS) {
-          // Already sorted by money
 
-          if (Math.abs(previousFair.stats.partialUnfairness - est.stats.partialUnfairness) > RuntimeConstants.precisionError) //TODO use fairness
-            if (previousFair.stats.partialUnfairness > est.stats.partialUnfairness) {//use Double.compare. at moheft as well or add precision error
-              skyline.add(est);
-              previousFair = est;
-            }
-
-          continue;
+        if (Math.abs(previousFair.stats.partialUnfairness - est.stats.partialUnfairness) > RuntimeConstants.precisionError) {
+          if (previousFair.stats.partialUnfairness > est.stats.partialUnfairness) {
+            skylineFairness.add(est);
+            previousFair = est;
+          }
         }
-        if (Math.abs(previous.stats.money - est.stats.money) > RuntimeConstants.precisionError) //TODO ji fix or check
-          if (previous.stats.money > est.stats.money) {//use Double.compare. at moheft as well or add precision error
-            skyline.add(est);
-            previous = est;
-            previousFair = est;
-            continue;
-          }
-
-        if (Math.abs(previousFair.stats.partialUnfairness - est.stats.partialUnfairness) > RuntimeConstants.precisionError) //TODO use fairness
-          if (previousFair.stats.partialUnfairness > est.stats.partialUnfairness) {//use Double.compare. at moheft as well or add precision error
-            skyline.add(est);
-            previousFair = est;
-          }
-
-
       }
+
+      // Actualiza los resultados con planes óptimos y justos
+      results.clear();
+      results.addAll(skylineFairness);
     } else {
-      Plan previous = null;
-      for (Plan est : results) {
-        if (previous == null) {
-          skyline.add(est);
-          previous = est;
-          continue;
-        }
-        if (previous.stats.runtime_MS == est.stats.runtime_MS) {
-          // Already sorted by money
-          continue;
-        }
-        if (Math.abs(previous.stats.money - est.stats.money) > RuntimeConstants.precisionError) //TODO ji fix or check
-          if (previous.stats.money > est.stats.money) {//use Double.compare. at moheft as well or add precision error
-            skyline.add(est);
-            previous = est;
-          }
-      }
-
+      // Si multi es falso, usa sólo planes Pareto óptimos
+      results.clear();
+      results.addAll(paretoPlans);
     }
-    results.clear();
-    results.addAll(skyline.results);
-
   }
+
 
   public ArrayList<Plan> getSkyline(boolean multi, boolean partialSolution) {//todo: change
 
@@ -877,5 +863,4 @@ public class SolutionSpace implements Iterable<Plan> {
 
 
 }
-
 

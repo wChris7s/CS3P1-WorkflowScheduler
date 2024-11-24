@@ -10,7 +10,8 @@ import com.cwa.solaligue.app.utilities.Plot;
 import com.cwa.solaligue.app.utilities.RandomParameters;
 import com.cwa.solaligue.app.utilities.Triple;
 import lombok.extern.slf4j.Slf4j;
-
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,8 +28,8 @@ public class Main {
     String rankMethod = "dagMerge";
     boolean multiObjective = true;
     List<Map.Entry<String, Integer>> ensembleSizeList = List.of(
-        Map.entry("MONTAGE", 50),
-        Map.entry("LIGO", 50)
+            Map.entry("MONTAGE", 50),
+            Map.entry("LIGO", 50)
     );
     RuntimeConstants.quantum_MS = RuntimeConstants.OneSec_MS;
     int pruningFee = 10;
@@ -51,9 +52,10 @@ public class Main {
         constraintMode, moneyConstraint, timeConstraint);
 
     log.info(dag.toString());
-
+    /// ---
     var tittleTable = String.format(
-        "%-12s\t%-12s\t%-12s\t%-12s\t%-20s\t%-12s\t%-12s\t%12s%n",
+        "\t%-12s\t%-12s\t%-12s\t%-12s\t%-12s\t%-20s\t%-12s\t%-12s\t%12s%n",
+        "ID",
         "Plan",
         "Money",
         "Runtime_MS",
@@ -66,21 +68,30 @@ public class Main {
     );
     log.info(tittleTable);
 
-    ensemblePlans.forEach(plan -> {
-      var content = String.format(
-          "%-12d\t%-12f\t%-12d\t%-12f\t%-20f\t%-12f\t%-12f\t%12f%n",
-          ensemblePlans.indexOf(plan),
-          plan.stats.money,
-          plan.stats.runtime_MS,
-          //plan.stats.unfairness, xio1
-          plan.stats.inequityStdDev, // Nueva métrica
-          plan.stats.unfairnessNorm,
-          plan.stats.subdagMeanSlowdown,
-          plan.stats.subdagMeanResponseTime,
-          plan.stats.subdagMaxResponseTime
-      );
-      log.info(content);
-    });
+    String outputFile = "src/main/resources/output/results.csv";
+    try (FileWriter writer = new FileWriter(outputFile)) {
+      writer.write("ID,Plan,Makespan,Cost,Unfairness\n");
+
+      ensemblePlans.forEach(plan -> {
+        int index = ensemblePlans.indexOf(plan); // Índice del plan
+        int planHash = plan.hashCode(); // Hash único del plan
+        try {
+          writer.write(String.format("%d,%d,%.2f,%d,%.6f\n",
+                  planHash,
+                  index,
+                  plan.stats.money,
+                  plan.stats.runtime_MS,
+                  plan.stats.unfairnessNorm));
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      });
+      log.info("Results saved to " + outputFile);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+
 
     if (validate) {
       log.info("Running sims");

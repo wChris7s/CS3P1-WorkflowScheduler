@@ -4,6 +4,8 @@ import com.cwa.solaligue.app.graph.DAG;
 import com.cwa.solaligue.app.graph.Edge;
 import com.cwa.solaligue.app.graph.Operator;
 import com.cwa.solaligue.app.utilities.Pair;
+import java.util.Comparator;
+
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,11 +17,13 @@ public class Plan  {
     public HashMap<Long, Long> assignments;//opIdToContId;
     public HashMap<Long, ArrayList<Long>> contAssignments; //contId->list<opId>
     public HashMap<Long, ArrayList<Long>> contIdToOpIds;
+
     public Cluster cluster;
     public Statistics stats;
     Statistics beforeStats;
     String vmUpgrading;
     public ArrayList<Long> opsMigrated = null;
+    public HashMap<Long, Double> subdagMoneyFragment = new HashMap<>(); // Nueva propiedad
 
     public HashMap<Long, Pair<Long, Long>> opIdtoStartEndProcessing_MS;
 
@@ -42,9 +46,13 @@ public class Plan  {
         assignments = new HashMap<>();
         contIdToOpIds = new HashMap<>();
         this.cluster = new Cluster(cluster);
+        //System.out.println("[DEBUG] Plan creado con ID: " + this.hashCode());
+
         opIdtoStartEndProcessing_MS = new HashMap<>();
         contAssignments = new HashMap<>();
         opIdtoStartEndProcessing_MS = new HashMap<>();
+        calculateSubdagMoneyFragment(); // Llamada al nuevo método
+
         stats = new Statistics(this);
         opIdToearliestStartTime_MS = new HashMap<>();
         opIdToContainerRuntime_MS = new HashMap<>();
@@ -84,7 +92,7 @@ public class Plan  {
         opIdtoStartEndProcessing_MS = new HashMap<>();
         for (long oid : p.opIdtoStartEndProcessing_MS.keySet()) {
             opIdtoStartEndProcessing_MS.put(oid,
-                new Pair<>(p.opIdtoStartEndProcessing_MS.get(oid).a, p.opIdtoStartEndProcessing_MS.get(oid).b));
+                    new Pair<>(p.opIdtoStartEndProcessing_MS.get(oid).a, p.opIdtoStartEndProcessing_MS.get(oid).b));
         }
         stats = new Statistics(p.stats);
 
@@ -114,6 +122,7 @@ public class Plan  {
         }
 
         this.cluster = new Cluster(p.cluster);
+        //System.out.println("[DEBUG] Copia de Plan creada con ID: " + this.hashCode());
 
         opsMigrated = new ArrayList<>();
         for(Long opId: p.opsMigrated){
@@ -129,6 +138,7 @@ public class Plan  {
         }
         contAssignments.get(contId).add(opId);
         beforeStats = new Statistics(stats);
+
 
         long startProcessingTime_MS = 0L;
         long endProcessingTime_MS = 0L;
@@ -155,7 +165,7 @@ public class Plan  {
             long fromId = link.from;
 
             long fromOpEndTimePLUSDTTime =
-                opIdtoStartEndProcessing_MS.get(fromId).b + calculateDelayDistributedStorage(fromId,opId,contId);
+                    opIdtoStartEndProcessing_MS.get(fromId).b + calculateDelayDistributedStorage(fromId,opId,contId);
 
             dependenciesEnd_MS = Math.max(dependenciesEnd_MS,fromOpEndTimePLUSDTTime);//+1);
 
@@ -192,7 +202,15 @@ public class Plan  {
 
         if (backfilling) {
 
-            Collections.sort(cont.freeSlots); //sort the free slots from earliest to latest
+            final long localEarliestStartTime_MS = earliestStartTime_MS; // Copia local como final
+
+            //Collections.sort(cont.freeSlots); //sort the free slots from earliest to latest
+            Comparator<Slot> adaptiveComparator = Comparator
+                    .comparingLong((Slot s) -> s.end_MS - s.start_MS) // Prioriza slots más grandes
+                    .thenComparingLong(s -> Math.abs(s.start_MS - localEarliestStartTime_MS)); // Proximidad al tiempo de inicio
+
+            cont.freeSlots.sort(adaptiveComparator); // Ordena los slots
+
             Slot toberemoved = null;
 
             for (int i = 0; i < cont.freeSlots.size() && !backfilled; ++i) {
@@ -200,7 +218,7 @@ public class Plan  {
                 Slot fs = cont.freeSlots.get(i);
 
                 if (  fs.end_MS-fs.start_MS >= opProcessingDuration_MS &&
-                    earliestStartTime_MS + beforeDTDuration_MS <= fs.end_MS - opProcessingDuration_MS){
+                        earliestStartTime_MS + beforeDTDuration_MS <= fs.end_MS - opProcessingDuration_MS){
                     backfilled = true;
 
                     long pushForward = 0L;
@@ -241,7 +259,7 @@ public class Plan  {
                 pushForward = contFirstAvailTime_MS - (earliestStartTime_MS + beforeDTDuration_MS);  //so we push the op start,contStart, end times
 
             } else if( earliestStartTime_MS > contFirstAvailTime_MS ){           //if starContTime is after the cont was available
-                         // add possible free Slot
+                // add possible free Slot
                 if( cont.opsschedule.size() > 0){
                     cont.freeSlots.add(new Slot(contFirstAvailTime_MS,earliestStartTime_MS+beforeDTDuration_MS));
                 }
@@ -257,8 +275,6 @@ public class Plan  {
 
 
         }
-        //////////////////////////////////////////////////////////////////
-
 
         /////set start and end time for the container
         cont.setStartDT(startTimeCont_MS);
@@ -280,6 +296,8 @@ public class Plan  {
         cont.opsschedule.add(new Slot(opId, startProcessingTime_MS, endProcessingTime_MS)); //add a new scheduled slot for the operator
 
         //////Update Stats
+        calculateSubdagMoneyFragment(); // Llamada al nuevo método
+
         stats = new Statistics(this);
 
     }
@@ -320,7 +338,7 @@ public class Plan  {
 
 
         i.append(stats.runtime_MS).append(" ").append(stats.money).append(" ").append("conts ")
-            .append(cluster.containersList.size()).append("  ");
+                .append(cluster.containersList.size()).append("  ");
 
         sb.append(String.format("%10d %06.2f", stats.runtime_MS, stats.money));
 
@@ -424,7 +442,7 @@ public class Plan  {
 
         for (ContainerType ct : cluster.countTypes.keySet()) {
             i.append(ct.name).append("(").append(cluster.countTypes.get(ct)).append(")")
-                .append(" ");
+                    .append(" ");
 
             sb.append(String.format(" %s(%d) ",ct.name,cluster.countTypes.get(ct)));
         }
@@ -434,7 +452,34 @@ public class Plan  {
 
         return sb.toString();
     }
+    public void calculateSubdagMoneyFragment() {
+        // Inicializa subdagMoneyFragment
+        subdagMoneyFragment = new HashMap<>();
 
+        // Código para calcular subdagMoneyFragment
+        for (Container c : this.cluster.containersList) {
 
+            HashMap<Long, Long> timeUsedPerDag = new HashMap<>();
+
+            for (Slot s : c.opsschedule) {
+                Long dId = this.graph.operators.get(s.opId).dagID;
+                Long tused = this.opIdToBeforeDTDuration_MS.get(s.opId)
+                        + this.opIdtoStartEndProcessing_MS.get(s.opId).b
+                        + this.opIdToAfterDTDuration_MS.get(s.opId);
+
+                tused += timeUsedPerDag.getOrDefault(dId, 0L);
+                timeUsedPerDag.put(dId, tused);
+            }
+
+            int contQuanta = (int) Math.ceil((double) (c.UsedUpTo_MS - c.startofUse_MS) / RuntimeConstants.quantum_MS);
+            double contCost = contQuanta * c.contType.container_price;
+
+            for (Long dgId : timeUsedPerDag.keySet()) {
+                double moneyFrag = contCost * timeUsedPerDag.get(dgId) / (contQuanta * RuntimeConstants.quantum_MS);
+                moneyFrag += subdagMoneyFragment.getOrDefault(dgId, 0.0);
+                subdagMoneyFragment.put(dgId, moneyFrag);
+            }
+        }
+    }
 
 }

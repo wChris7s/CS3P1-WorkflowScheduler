@@ -506,7 +506,10 @@ public class HhdsEnsemble implements Scheduler {
     for (Long contId : plan.cluster.containers.keySet()) { //add to every existing container
       Plan newPlan = new Plan(plan);
       newPlan.assignOperator(opId, contId, backfilling);
-      planEstimations.add(newPlan);
+      if (newPlan.stats.money <= money_constraint * 1.1) { // Permite un 10% extra sobre el presupuesto
+        planEstimations.add(newPlan);
+      }
+
     }
     if (plan.cluster.contUsed.size() < maxContainers) {  //add a nwe container of contType and assign the op to that
       for (ContainerType contType : contTypes) {//uncomment to add every ctype
