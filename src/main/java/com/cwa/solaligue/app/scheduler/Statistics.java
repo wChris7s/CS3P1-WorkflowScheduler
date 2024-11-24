@@ -2,11 +2,17 @@ package com.cwa.solaligue.app.scheduler;
 
 import com.cwa.solaligue.app.graph.DAG;
 import com.cwa.solaligue.app.graph.Edge;
-
 import java.util.HashMap;
-
+//xio
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 
 public class Statistics {
+    //xio
+    public Double inequityStdDev = 0.0;
+    public HashMap<Long, Double> subdagOverspending = new HashMap<>();
+    public HashMap<Long, Double> subdagLossRate = new HashMap<>();
 
 
     public long runtime_MS;
@@ -39,6 +45,10 @@ public class Statistics {
 
 
     public Statistics(Plan plan){
+
+        //xio
+        double totalLossRate = 0.0;
+        List<Double> lossRates = new ArrayList<>();
 
         meanContainersUsed=0;
         runtime_MS = 0;
@@ -224,15 +234,47 @@ public class Statistics {
                 }
             }
 
+            //inicio xio
+            for (Long dagId : subdagFinishTime.keySet()) {
+                // Cálculo del slowdown
+                double slowdown = plan.graph.superDAG.getSubDAG(dagId).computeCrPathLength(
+                        new ContainerType[]{plan.cluster.containersList.get(0).contType}
+                ) / (double) subdagFinishTime.get(dagId);
+
+                // Cálculo del overspending
+                double exclusiveCost = subdagMakespan.get(dagId) * plan.cluster.containersList.get(0).contType.container_price;
+                double sharedCost = subdagMoneyFragment.getOrDefault(dagId, 0.0);
+                double overspending = sharedCost / exclusiveCost;
+                subdagOverspending.put(dagId, overspending);
+
+                // Cálculo del Loss Rate
+                double lossRate = (slowdown + overspending) / 2;
+                subdagLossRate.put(dagId, lossRate);
+                lossRates.add(lossRate);
+
+                totalLossRate += lossRate;
+            }
+
+            // Media de Loss Rates
+            double meanLossRate = totalLossRate / lossRates.size();
+
+            // Cálculo de Inequidad como desviación estándar
+            double variance = 0.0;
+            for (double lossRate : lossRates) {
+                variance += Math.pow(lossRate - meanLossRate, 2);
+            }
+            inequityStdDev = Math.sqrt(variance / lossRates.size());
+            //-------- fin.
             if(subdagFinishTime.size()>0) {
                 subdagMeanMakespan = meanMakespan / (double) subdagFinishTime.size();
                 subdagMeanResponseTime = meanResponseTime / (double) subdagFinishTime.size();
                 subdagMeanSlowdown = meanSlowdown / (double) subdagFinishTime.size();
             }
-
+            //calculo de inequidd
             for(Long dgId: subdagResponseTime.keySet()) {
                     partialUnfairness += Math.abs(subdagResponseTime.get(dgId) / computePartialCP(plan.graph.superDAG.getSubDAG(dgId)) - subdagMeanResponseTime);
                            }
+            //inequidad normalizadas
             for(Long dgId: subdagResponseTime.keySet()) {
                 unfairness += Math.abs((double)subdagResponseTime.get(dgId)/plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new ContainerType[]{plan.cluster.containersList.get(0).contType}) -subdagMeanResponseTime);//+= Math.abs(subdagResponseTime.get(dgId) / plan.graph.superDAG.getSubDAG(dgId).computeCrPathLength(new containerType[]{plan.cluster.containersList.get(0).contType}) - subdagMeanResponseTime);
              }

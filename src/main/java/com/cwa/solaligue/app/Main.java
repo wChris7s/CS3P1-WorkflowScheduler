@@ -57,7 +57,8 @@ public class Main {
         "Plan",
         "Money",
         "Runtime_MS",
-        "Unfairness",
+        //"Unfairness", xio1
+            "Inequity StdDev",
         "UnfairnessNormalized",
         "AvgSlowdown",
         "AvgStretch",
@@ -71,7 +72,8 @@ public class Main {
           ensemblePlans.indexOf(plan),
           plan.stats.money,
           plan.stats.runtime_MS,
-          plan.stats.unfairness,
+          //plan.stats.unfairness, xio1
+          plan.stats.inequityStdDev, // Nueva métrica
           plan.stats.unfairnessNorm,
           plan.stats.subdagMeanSlowdown,
           plan.stats.subdagMeanResponseTime,
