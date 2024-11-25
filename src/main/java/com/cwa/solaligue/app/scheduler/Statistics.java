@@ -242,7 +242,7 @@ public class Statistics {
                 ) / (double) subdagFinishTime.get(dagId);
 
                 // Cálculo del overspending
-                double exclusiveCost = subdagMakespan.get(dagId) * plan.cluster.containersList.get(0).contType.container_price;
+                double exclusiveCost = subdagMakespan.get(dagId) * plan.cluster.containersList.get(0).contType.getContainerPrice();
                 double sharedCost = subdagMoneyFragment.getOrDefault(dagId, 0.0);
                 double overspending = sharedCost / exclusiveCost;
                 subdagOverspending.put(dagId, overspending);
