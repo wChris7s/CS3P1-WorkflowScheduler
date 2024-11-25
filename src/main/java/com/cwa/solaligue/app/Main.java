@@ -5,17 +5,21 @@ import com.cwa.solaligue.app.lattice.LatticeGenerator;
 import com.cwa.solaligue.app.parser.PegasusDaxParser;
 import com.cwa.solaligue.app.scheduler.*;
 import com.cwa.solaligue.app.simulator.SimEnginge;
-import com.cwa.solaligue.app.utilities.PairPlot;
-import com.cwa.solaligue.app.utilities.Plot;
-import com.cwa.solaligue.app.utilities.RandomParameters;
-import com.cwa.solaligue.app.utilities.Triple;
+import com.cwa.solaligue.app.utilities.*;
 import lombok.extern.slf4j.Slf4j;
+import org.jfree.data.xy.XYSeries;
+
+import java.awt.*;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.cwa.solaligue.app.utilities.PlotCSV.createChart;
 
 @Slf4j
 public class Main {
@@ -28,8 +32,8 @@ public class Main {
     String rankMethod = "dagMerge";
     boolean multiObjective = true;
     List<Map.Entry<String, Integer>> ensembleSizeList = List.of(
-            Map.entry("MONTAGE", 50),
-            Map.entry("LIGO", 50)
+        Map.entry("MONTAGE", 50),
+        Map.entry("LIGO", 50)
     );
     RuntimeConstants.quantum_MS = RuntimeConstants.OneSec_MS;
     int pruningFee = 20;
@@ -41,21 +45,20 @@ public class Main {
     ensembleSizeList.forEach(entry -> {
       if (RuntimeConstants.quantum_MS == RuntimeConstants.OneHour_MS)
         flowsAndParams.add(
-                new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1000, 100));
+            new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1000, 100));
       else
         flowsAndParams.add(
-                new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1, 1));
+            new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1, 1));
     });
 
     ArrayList<Plan> ensemblePlans = new ArrayList<>();
     DAG dag = runMultipleFlows(flowsAndParams, ensemblePlans, rankMethod, multiObjective, pruningFee,
-            constraintMode, moneyConstraint, timeConstraint);
-
+        constraintMode, moneyConstraint, timeConstraint);
     log.info(dag.toString());
 
-
-    String outputFilePath = "D:/Paralela/Projectofinal/Equi/CS3P1-WorkflowScheduler/src/main/resources/output/plans.csv";
+    String outputFilePath = "src/main/resources/output/plans.csv";
     writePlansToCSV(ensemblePlans, outputFilePath);
+    plotCSV();
 
     if (validate) {
       log.info("Running sims");
@@ -67,31 +70,57 @@ public class Main {
 
     List<PairPlot<Double, Long>> data = new ArrayList<>();
     ensemblePlans.forEach(p ->
-            data.add(new PairPlot<>(p.stats.runtime_MS, p.stats.money)));
+        data.add(new PairPlot<>(p.stats.runtime_MS, p.stats.money)));
     Plot plot = new Plot("Time/Money Plot", data, "src/main/resources/output/plot.png");
     plot.pack();
     plot.setVisible(true);
   }
 
+  private static void plotCSV() {
+    String csvPath = "src/main/resources/output/plans.csv";
+    List<String> lines;
+    try {
+      lines = Files.readAllLines(Paths.get(csvPath));
+    } catch (IOException e) {
+      e.printStackTrace();
+      return;
+    }
+
+    XYSeries seriesMoney = new XYSeries("Money");
+    XYSeries seriesRuntime = new XYSeries("Runtime_MS");
+    XYSeries seriesInequity = new XYSeries("Inequity");
+
+    for (int i = 1; i < lines.size(); i++) {
+      String[] values = lines.get(i).split(";");
+      int plan = Integer.parseInt(values[0]);
+      double money = Double.parseDouble(values[1].replace(',', '.'));
+      long runtime = Long.parseLong(values[2]);
+      double inequity = Double.parseDouble(values[3].replace(',', '.'));
+
+      seriesMoney.add(plan, money);
+      seriesRuntime.add(plan, runtime);
+      seriesInequity.add(plan, inequity);
+    }
+
+    createChart(seriesMoney,"Plan vs Money", "Plan", "Money", "src/main/resources/output/plan_vs_money.png", Color.BLACK);
+    createChart(seriesRuntime, "Plan vs Runtime_MS", "Plan", "Runtime_MS", "src/main/resources/output/plan_vs_runtime.png", Color.BLUE);
+    createChart(seriesInequity, "Plan vs Inequity", "Plan", "Inequity", "src/main/resources/output/plan_vs_inequity.png", Color.RED);
+  }
+
   private static void writePlansToCSV(List<Plan> plans, String filePath) {
     try (FileWriter writer = new FileWriter(filePath)) {
-
       writer.write("Plan;Money;Runtime_MS;Inequity\n");
-
-      // Escribir datos separados por punto y coma
       for (int i = 0; i < plans.size(); i++) {
         Plan plan = plans.get(i);
         writer.write(String.format(
-                "%d;%f;%d;%f\n",
-                i,
-                plan.stats.money,
-                plan.stats.runtime_MS,
-                plan.stats.inequityStdDev
+            "%d;%f;%d;%f%n",
+            i,
+            plan.stats.money,
+            plan.stats.runtime_MS,
+            plan.stats.inequityStdDev
         ));
       }
-
-      log.info("Datos guardados en: " + filePath);
-
+      log.info("Datos guardados en: {}", filePath);
     } catch (IOException e) {
       log.error("Error al escribir el archivo CSV", e);
     }
@@ -157,7 +186,7 @@ public class Main {
                             Integer pruningK, int constraintMode, double moneyConstraint, long timeConstraint) {
     SolutionSpace combined = new SolutionSpace();
     SolutionSpace paretoToCompare = execute(graph, true, "Knee", rankMethod,
-            combined, multiObjective, pruningK, constraintMode, moneyConstraint, timeConstraint);
+        combined, multiObjective, pruningK, constraintMode, moneyConstraint, timeConstraint);
     hhdsPlans.addAll(paretoToCompare.results);
   }
 
@@ -167,7 +196,7 @@ public class Main {
                                       double moneyConstraint, long timeConstraint) {
     Cluster cluster = new Cluster();
     Scheduler scheduler = new HhdsEnsemble(graph, cluster, prune, method, rankMethod, multiObjective, pruningK,
-            constraintMode, moneyConstraint, timeConstraint);
+        constraintMode, moneyConstraint, timeConstraint);
     SolutionSpace space = scheduler.schedule();
     combined.addAll(space);
     return space;

@@ -265,6 +265,7 @@ public class Statistics {
             }
             inequityStdDev = Math.sqrt(variance / lossRates.size());
             //-------- fin.
+
             if(subdagFinishTime.size()>0) {
                 subdagMeanMakespan = meanMakespan / (double) subdagFinishTime.size();
                 subdagMeanResponseTime = meanResponseTime / (double) subdagFinishTime.size();
