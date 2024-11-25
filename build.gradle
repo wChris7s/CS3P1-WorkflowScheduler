@@ -16,4 +16,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     implementation 'ch.qos.logback:logback-classic:1.5.12'
+    implementation 'org.uma.jmetal:jmetal-core:6.0'
+    implementation 'org.uma.jmetal:jmetal-algorithm:6.0'
+    implementation 'org.uma.jmetal:jmetal-problem:6.0'
+
+
 }
