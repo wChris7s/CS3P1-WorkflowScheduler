@@ -10,7 +10,8 @@ import com.cwa.solaligue.app.utilities.Plot;
 import com.cwa.solaligue.app.utilities.RandomParameters;
 import com.cwa.solaligue.app.utilities.Triple;
 import lombok.extern.slf4j.Slf4j;
-
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,11 +28,11 @@ public class Main {
     String rankMethod = "dagMerge";
     boolean multiObjective = true;
     List<Map.Entry<String, Integer>> ensembleSizeList = List.of(
-        Map.entry("MONTAGE", 50),
-        Map.entry("LIGO", 50)
+            Map.entry("MONTAGE", 50),
+            Map.entry("LIGO", 50)
     );
     RuntimeConstants.quantum_MS = RuntimeConstants.OneSec_MS;
-    int pruningFee = 10;
+    int pruningFee = 20;
     int constraintMode = 0;
     double moneyConstraint = 2000;
     long timeConstraint = 100000;
@@ -40,47 +41,21 @@ public class Main {
     ensembleSizeList.forEach(entry -> {
       if (RuntimeConstants.quantum_MS == RuntimeConstants.OneHour_MS)
         flowsAndParams.add(
-            new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1000, 100));
+                new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1000, 100));
       else
         flowsAndParams.add(
-            new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1, 1));
+                new Triple<>(resourcesPath + entry.getKey() + ".n." + entry.getValue() + ".0.dax", 1, 1));
     });
 
     ArrayList<Plan> ensemblePlans = new ArrayList<>();
     DAG dag = runMultipleFlows(flowsAndParams, ensemblePlans, rankMethod, multiObjective, pruningFee,
-        constraintMode, moneyConstraint, timeConstraint);
+            constraintMode, moneyConstraint, timeConstraint);
 
     log.info(dag.toString());
 
-    var tittleTable = String.format(
-        "%-12s\t%-12s\t%-12s\t%-12s\t%-20s\t%-12s\t%-12s\t%12s%n",
-        "Plan",
-        "Money",
-        "Runtime_MS",
-        //"Unfairness", xio1
-            "Inequity StdDev",
-        "UnfairnessNormalized",
-        "AvgSlowdown",
-        "AvgStretch",
-        "MaxStretch"
-    );
-    log.info(tittleTable);
 
-    ensemblePlans.forEach(plan -> {
-      var content = String.format(
-          "%-12d\t%-12f\t%-12d\t%-12f\t%-20f\t%-12f\t%-12f\t%12f%n",
-          ensemblePlans.indexOf(plan),
-          plan.stats.money,
-          plan.stats.runtime_MS,
-          //plan.stats.unfairness, xio1
-          plan.stats.inequityStdDev, // Nueva métrica
-          plan.stats.unfairnessNorm,
-          plan.stats.subdagMeanSlowdown,
-          plan.stats.subdagMeanResponseTime,
-          plan.stats.subdagMaxResponseTime
-      );
-      log.info(content);
-    });
+    String outputFilePath = "D:/Paralela/Projectofinal/Equi/CS3P1-WorkflowScheduler/src/main/resources/output/plans.csv";
+    writePlansToCSV(ensemblePlans, outputFilePath);
 
     if (validate) {
       log.info("Running sims");
@@ -92,11 +67,36 @@ public class Main {
 
     List<PairPlot<Double, Long>> data = new ArrayList<>();
     ensemblePlans.forEach(p ->
-        data.add(new PairPlot<>(p.stats.runtime_MS, p.stats.money)));
+            data.add(new PairPlot<>(p.stats.runtime_MS, p.stats.money)));
     Plot plot = new Plot("Time/Money Plot", data, "src/main/resources/output/plot.png");
     plot.pack();
     plot.setVisible(true);
   }
+
+  private static void writePlansToCSV(List<Plan> plans, String filePath) {
+    try (FileWriter writer = new FileWriter(filePath)) {
+      // Escribir encabezados separados por punto y coma
+      writer.write("Plan;Money;Runtime_MS;Inequity\n");
+
+      // Escribir datos separados por punto y coma
+      for (int i = 0; i < plans.size(); i++) {
+        Plan plan = plans.get(i);
+        writer.write(String.format(
+                "%d;%f;%d;%f\n", // Usar ';' como separador
+                i,
+                plan.stats.money,
+                plan.stats.runtime_MS,
+                plan.stats.inequityStdDev // Inequidad (o usa la métrica correspondiente)
+        ));
+      }
+
+      log.info("Datos guardados en: " + filePath);
+
+    } catch (IOException e) {
+      log.error("Error al escribir el archivo CSV", e);
+    }
+  }
+
 
   private static DAG runMultipleFlows(ArrayList<Triple<String, Integer, Integer>> flowsAndParams,
                                       ArrayList<Plan> plans,
@@ -157,7 +157,7 @@ public class Main {
                             Integer pruningK, int constraintMode, double moneyConstraint, long timeConstraint) {
     SolutionSpace combined = new SolutionSpace();
     SolutionSpace paretoToCompare = execute(graph, true, "Knee", rankMethod,
-        combined, multiObjective, pruningK, constraintMode, moneyConstraint, timeConstraint);
+            combined, multiObjective, pruningK, constraintMode, moneyConstraint, timeConstraint);
     hhdsPlans.addAll(paretoToCompare.results);
   }
 
@@ -167,9 +167,10 @@ public class Main {
                                       double moneyConstraint, long timeConstraint) {
     Cluster cluster = new Cluster();
     Scheduler scheduler = new HhdsEnsemble(graph, cluster, prune, method, rankMethod, multiObjective, pruningK,
-        constraintMode, moneyConstraint, timeConstraint);
+            constraintMode, moneyConstraint, timeConstraint);
     SolutionSpace space = scheduler.schedule();
     combined.addAll(space);
     return space;
   }
+
 }
