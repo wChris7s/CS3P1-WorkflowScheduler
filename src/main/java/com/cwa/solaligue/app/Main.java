@@ -75,18 +75,18 @@ public class Main {
 
   private static void writePlansToCSV(List<Plan> plans, String filePath) {
     try (FileWriter writer = new FileWriter(filePath)) {
-      // Escribir encabezados separados por punto y coma
+
       writer.write("Plan;Money;Runtime_MS;Inequity\n");
 
       // Escribir datos separados por punto y coma
       for (int i = 0; i < plans.size(); i++) {
         Plan plan = plans.get(i);
         writer.write(String.format(
-                "%d;%f;%d;%f\n", // Usar ';' como separador
+                "%d;%f;%d;%f\n",
                 i,
                 plan.stats.money,
                 plan.stats.runtime_MS,
-                plan.stats.inequityStdDev // Inequidad (o usa la métrica correspondiente)
+                plan.stats.inequityStdDev
         ));
       }
 
